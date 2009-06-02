@@ -1,8 +1,8 @@
 <% include_user_favorites_javascript %>
 
 <div class='calendar_download'>
-  <%= link_to "Download", event_formatted_schedule_path(@event, :format => 'ics') %> /
-  <%= link_to "Subscribe", event_formatted_schedule_url(@event, :format => 'ics', :protocol => 'webcal') %>
+  <%= link_to "Download", event_schedule_path(@event, :format => 'ics') %> /
+  <%= link_to "Subscribe", event_schedule_url(@event, :format => 'ics', :protocol => 'webcal') %>
 </div>
 
 <% cache @view_cache_key do %>

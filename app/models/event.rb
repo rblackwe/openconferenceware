@@ -1,24 +1,25 @@
 # == Schema Information
-# Schema version: 20090521012427
+# Schema version: 20090616061006
 #
 # Table name: events
 #
-#  id                                      :integer         not null, primary key
+#  id                                      :integer(4)      not null, primary key
 #  title                                   :string(255)     
 #  deadline                                :datetime        
 #  open_text                               :text            
 #  closed_text                             :text            
 #  created_at                              :datetime        
 #  updated_at                              :datetime        
-#  proposal_status_published               :boolean         not null
+#  proposal_status_published               :boolean(1)      not null
 #  session_text                            :text            
 #  tracks_text                             :text            
 #  start_date                              :datetime        
 #  end_date                                :datetime        
-#  accept_proposal_comments_after_deadline :boolean         
-#  schedule_published                      :boolean
-#  slug                                    :string(255)
-#  parent_id                               :integer
+#  accept_proposal_comments_after_deadline :boolean(1)      
+#  slug                                    :string(255)     
+#  schedule_published                      :boolean(1)      
+#  parent_id                               :integer(4)      
+#  proposal_titles_locked                  :boolean(1)      
 #
 
 class Event < ActiveRecord::Base
@@ -63,6 +64,16 @@ class Event < ActiveRecord::Base
   # Formats this event's dates for use in a select form control.
   def dates_for_select
     return [['','']] + self.dates.map{|date| [date.strftime("%B %d, %Y"), date.strftime("%Y-%m-%d")]}
+  end
+  
+  # Determines if the event is currently taking place.
+  def underway?
+    self.start_date && self.end_date && (self.start_date..self.end_date).include?(Time.zone.now)
+  end
+
+  # Is this the current event?
+  def current?
+    return self == Event.current
   end
 
   EVENT_CURRENT_CACHE_KEY = "event_current"
@@ -165,14 +176,19 @@ class Event < ActiveRecord::Base
     return self.class.find(:all, :order => "title asc", :select => "id, title").reject{|event| event == self}
   end
 
-  # Return array of Rooms for this event or its parent event.
+  # Return array of Rooms for this event and its parent event.
   def rooms_inherit
-    return (self.parent.ergo.rooms || [] + self.rooms).sort_by(&:name)
+    return [self.parent.ergo.rooms, self.rooms].flatten.compact.sort_by(&:name)
   end
 
+  # Return array of Tracks for this event, its parent, and its siblings.
+  def tracks_combined
+    return [self.tracks_descend, self.parent.ergo.tracks_descend].flatten.compact.uniq.sort_by(&:title)
+  end
+  
   # Return array of Tracks for this event and its children.
   def tracks_descend
-    return (self.tracks + self.children.map(&:tracks)).flatten.sort_by(&:title)
+    return (self.tracks + self.children.map(&:tracks)).flatten.uniq.sort_by(&:title)
   end
 
   # Return start_time for either self or parent Event.
@@ -183,5 +199,10 @@ class Event < ActiveRecord::Base
   # Return end_time for either self or parent Event.
   def end_date
     return self.parent_id ? self.parent.end_date : self.read_attribute(:end_date)
+  end
+
+  # Return the parent event or this Event.
+  def parent_or_self
+    return self.parent || self
   end
 end

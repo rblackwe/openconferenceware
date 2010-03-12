@@ -1,4 +1,8 @@
 class UserFavoritesController < ApplicationController
+  # Don't assign @event for "modify" action, it doesn't need it and will be slowed by it.
+  skip_before_filter :assign_events, :only => :modify
+  skip_before_filter :assign_current_event_without_redirecting, :only => :modify
+
   before_filter :assert_user
   before_filter :login_required, :only => :modify
   before_filter :assert_record_ownership, :only => :modify
@@ -8,7 +12,7 @@ class UserFavoritesController < ApplicationController
   # GET /favorites.json
   def index
     @user_favorites = Defer {
-      view_cache_key = "favorites,user_#{@user.id}.#{request.format}"
+      view_cache_key = "favorites,user_#{@user.id}.#{request.format},join_#{params[:join]}"
       Rails.cache.fetch_object(view_cache_key) {
         # The :join argument, used by the AJAX, causes action to return UserFavorite records, rather than Proposal records.
         if params[:join] == "1"
@@ -25,8 +29,8 @@ class UserFavoritesController < ApplicationController
       format.json  { render :json => Undefer(@user_favorites) }
       format.ics {
         render :text => Proposal.to_icalendar(
-          @user_favorites,
-          :title => "#{@user.possessive_label(false)} favorites",
+          @user_favorites.scheduled,
+          :title => "#{@user.label.possessiveize} favorites",
           :url_helper => lambda {|item| session_url(item)})
       }
     end

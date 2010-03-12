@@ -25,21 +25,58 @@ module ApplicationHelper
   def include_jwysiwyg
     return if defined?(@jwysiwyg_included) && @jwysiwyg_included
     content_for(:stylesheets, stylesheet_link_tag("jquery.wysiwyg.css"))
-    content_for(:scripts,javascript_include_tag("jquery.wysiwyg.pack.js") + <<-HERE
+    content_for(:scripts,javascript_include_tag("jquery.wysiwyg.js") + <<-HERE
     <script type="text/javascript">
       /*<![CDATA[*/
       $(function()
       {
           $('textarea.rich').wysiwyg({
+            options: {
+              autoSave: true
+            },
             controls: {
-              separator00: { visible: true },
-              justifyLeft: { visible: true },
-              justifyCenter: { visible: true },
-              justifyRight: { visible: true },
-              separator04: { visible: true },
+              bold: { visible: true },
+              italic: { visible: true },
+              strikeThrough: { visible: true },
+              underline: { visible: true },
+              justifyLeft: { visible: false },
+              justifyCenter: { visible: false },
+              justifyRight: { visible: false },
+              justifyFull: { visible: false },
+              separator01: { visible: false },
+              indent: { visible: false },
+              outdent: { visible: false },
+              separator02: { visible: false },
+              subscript: { visible: false },
+              superscript: { visible: false },
+              separator03: { visible: false },
+              undo: { visible: false },
+              redo: { visible: false },
+              separator04: { visible: false },
               insertOrderedList: { visible: true },
               insertUnorderedList: { visible: true },
-              html: { visible: true }
+              insertHorizontalRule: { visible: false },
+              separator05: { visible: true },
+              createLink: { visible: true },
+              insertImage: { visible: true },
+              separator06: { visible: true },
+              h1mozilla: { visible: false },
+              h2mozilla: { visible: false },
+              h3mozilla: { visible: false },
+              h1: { visible: false },
+              h2: { visible: false },
+              h3: { visible: false },
+              separator07: { visible: false },
+              cut: { visible: false },
+              copy: { visible: false },
+              paste: { visible: false },
+              separator08: { visible: false },
+              increaseFontSize: { visible: false },
+              decreaseFontSize: { visible: false },
+              separator09: { visible: false },
+              html: { visible: true },
+              removeFormat: { visible: true },
+              seperator00: { visible: false },
             }
           });
       });
@@ -102,8 +139,9 @@ module ApplicationHelper
   end
 
   # Main navigation to display.
-  def nav_kind
-    if @event && @event.proposal_status_published?
+  def nav_kind(event=nil)
+    event ||= @event
+    if event && event.proposal_status_published?
       return :sessions
     else
       return :proposals
@@ -111,13 +149,15 @@ module ApplicationHelper
   end
 
   # Main navigation path to use.
-  def nav_path
-    return self.send("#{nav_kind}_path")
+  def nav_path(event=nil)
+    event ||= @event
+    return self.send("event_#{nav_kind(event)}_path", event)
   end
 
   # Main navigation title.
-  def nav_title
-    return self.nav_kind.to_s.titleize
+  def nav_title(event=nil)
+    event ||= @event
+    return self.nav_kind(event).to_s.titleize
   end
 
   # Subnavigation to display.
@@ -141,5 +181,12 @@ module ApplicationHelper
   # Subnavigation title.
   def subnav_title
     return self.subnav_kind.to_s.titleize
+  end
+
+  # Should this event be flagged as active in the HTML/CSS header?
+  def flag_event_as_active?(event)
+    return @event ?
+      event == @event.parent_or_self :
+      true
   end
 end

@@ -1,3 +1,4 @@
+*.bak
 *.diff
 *.rcov
 *.swp
@@ -7,7 +8,6 @@
 .hgtags
 /*.sql
 /README.html
-/config/*.bak
 /config/database~custom.yml
 /config/secrets.yml
 /config/theme.txt
@@ -22,6 +22,7 @@
 /public/stylesheets/cache/*
 /public/system/*
 /public/themes/*
+/rerun.txt
 /tags
 /themes/bridgepdx/stylesheets/common_css/*
 /tmp/*

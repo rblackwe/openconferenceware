@@ -1,36 +1,37 @@
 # == Schema Information
-# Schema version: 20090521012427
+# Schema version: 20090616061006
 #
 # Table name: users
 #
-#  id                        :integer         not null, primary key
-#  login                     :string(255)
-#  email                     :string(255)
-#  crypted_password          :string(40)
-#  salt                      :string(40)
-#  admin                     :boolean
-#  created_at                :datetime
-#  updated_at                :datetime
-#  remember_token            :string(255)
-#  remember_token_expires_at :datetime
-#  using_openid              :boolean
-#  affiliation               :string(128)
-#  biography                 :text(2048)
-#  website                   :string(1024)
-#  complete_profile          :boolean
-#  photo_file_name           :string(255)
-#  photo_content_type        :string(255)
-#  photo_file_size           :integer
-#  first_name                :string(255)
-#  last_name                 :string(255)
-#  blog_url                  :string(255)
-#  identica                  :string(255)
-#  twitter                   :string(255)
+#  id                        :integer(4)      not null, primary key
+#  login                     :string(255)     
+#  email                     :string(255)     
+#  crypted_password          :string(40)      
+#  salt                      :string(40)      
+#  admin                     :boolean(1)      
+#  created_at                :datetime        
+#  updated_at                :datetime        
+#  remember_token            :string(255)     
+#  remember_token_expires_at :datetime        
+#  using_openid              :boolean(1)      
+#  affiliation               :string(128)     
+#  biography                 :text            
+#  website                   :string(1024)    
+#  complete_profile          :boolean(1)      
+#  photo_file_name           :string(255)     
+#  photo_content_type        :string(255)     
+#  photo_file_size           :integer(4)      
+#  first_name                :string(255)     
+#  last_name                 :string(255)     
+#  blog_url                  :string(255)     
+#  identica                  :string(255)     
+#  twitter                   :string(255)     
 #
 
 require 'digest/sha1'
 class User < ActiveRecord::Base
-  # Mixins
+  #---[ Mixins ]----------------------------------------------------------
+
   include NormalizeUrlMixin
   include SettingsCheckersMixin
   include PublicAttributesMixin
@@ -50,7 +51,8 @@ class User < ActiveRecord::Base
     :label,
     :label_with_id
 
-  # Associations
+  #---[ Associations ]----------------------------------------------------
+
   has_and_belongs_to_many :proposals
 
   has_many :user_favorites
@@ -60,11 +62,10 @@ class User < ActiveRecord::Base
     end
   end
 
+  #---[ Attributes ]------------------------------------------------------
+
   # Virtual attribute for the unencrypted password
   attr_accessor :password
-
-  # Triggers
-  before_save :encrypt_password
 
   # Protected fields
   attr_protected *[
@@ -74,7 +75,10 @@ class User < ActiveRecord::Base
     :complete_profile,
   ]
 
-  # Validations
+  #---[ Validations ]-----------------------------------------------------
+
+  before_save :encrypt_password
+
   validates_presence_of     :login
   validates_length_of       :login,    :within => 3..40,  :unless => :using_openid?
   validates_uniqueness_of   :login,                       :case_sensitive => false
@@ -94,25 +98,26 @@ class User < ActiveRecord::Base
 
   validate :url_validator
 
+  #---[ Scopes ]----------------------------------------------------------
+
   default_order = { :order => 'lower(last_name), lower(first_name)' }
 
-  # Scopes
   named_scope :by_name, default_order
   named_scope :complete_profiles, { :conditions => {:complete_profile => true} }.reverse_merge!(default_order)
-  
+
   named_scope :submitted_to, lambda {|event| {
-    :select => 'DISTINCT users.id, users.*', 
-    :joins => :proposals, 
+    :select => 'DISTINCT users.id, users.*',
+    :joins => :proposals,
     :conditions => ['proposals.event_id = ?', event.id] }.reverse_merge!(default_order)
   }
-  
-  named_scope :speaking_at, lambda {|event| { 
+
+  named_scope :speaking_at, lambda {|event| {
     :select => 'DISTINCT users.id, users.*',
-    :joins => :proposals, 
+    :joins => :proposals,
     :conditions => ['proposals.status = "confirmed" AND proposals.event_id = ?', event.id] }.reverse_merge!(default_order)
   }
 
-  # CSV Export
+  #---[ CSV export ]------------------------------------------------------
 
   comma :brief do
     first_name
@@ -129,14 +134,24 @@ class User < ActiveRecord::Base
     affiliation
     email
     biography
-    photo :url => "Photo"
+    photo :url => 'Photo'
     website
     twitter
     identica
     blog_url
-    created_at :xmlschema => "Created"
-    updated_at :xmlschema => "Updated"
+    created_at :xmlschema => 'Created'
+    updated_at :xmlschema => 'Updated'
   end
+
+  #---[ PaperClip avatar images ]-----------------------------------------
+
+  has_attached_file :photo,
+    :styles => {
+      :profile => '200x400>',
+      :avatar => '48x48#'
+    }
+
+  #---[ Methods ]---------------------------------------------------------
 
   # Return first admin user or a nil
   def self.find_first_admin
@@ -147,13 +162,6 @@ class User < ActiveRecord::Base
   def self.find_first_non_admin
     self.find(:first, :conditions => {:admin => false})
   end
-
-  # Photo Attachments
-  has_attached_file :photo,
-    :styles => {
-      :profile => "200x400>",
-      :avatar => "48x48!"
-    }
 
   # Authenticates a user by their login name and unencrypted password.  Returns the user or nil.
   def self.authenticate(login, password)
@@ -238,7 +246,7 @@ class User < ActiveRecord::Base
 
   # Return a label for the user.
   def label
-    return "#{(self.fullname.with{blank? ? nil : self}) || (self.using_openid? ? URI.parse(login).host : self.login)}"
+    return self.fullname.with{blank? ? nil : self} || (self.using_openid? ? "User ##{self.id} at #{URI.parse(login).host}" : self.login)
   end
 
   # Return a label for the user with their user ID.
@@ -249,10 +257,6 @@ class User < ActiveRecord::Base
   # Return string with the user's full name, or as much of it as possible, or a nil.
   def fullname
     return [self.first_name, self.last_name].compact.join(" ") if ! self.first_name.blank? || ! self.last_name.blank?
-  end
-
-  def possessive_label(html=true)
-    label + (html ? '&apos;' : "'") + (%w(s S).include?(label[-1..-1]) ? '' : 's')
   end
 
   # Set the user's first and last name by splitting a single string.
@@ -285,8 +289,8 @@ class User < ActiveRecord::Base
     end
   end
 
-  def proposals_scheduled
-    self.proposals.scheduled.all
+  def sessions
+    return self.proposals.confirmed
   end
 
 protected

@@ -3,6 +3,78 @@ Changes
 
 OpenConferenceWare stable releases and changes included, with latest at top:
 
+* Next
+- Fixed "/events/EVENTID/proposals/stats" to use per-event caching.
+- Gem dependencies are now managed with Bundler and deployed via Capistrano, eliminating need to run "sudo rake gems:install".
+- Redesigned "bridgepdx" theme for 2010, it uses a new menu that provides a way to pick events and their associated data.
+- Improved handling of multiple events: reworked layout, header, menu, favorites, tracks, etc.
+- Added shared fragments, which are local files that can be included in different applications, e.g., a header to include in WordPress and wiki.
+- Added task to update thumbnails: `rake paperclip:refresh CLASS=User`
+
+* v0.20100218
+- FIXED event-related checks to use a proposal's event when possible,
+  rather than the current event, since these aren't always the same.
+- FIXED scrolling to a specific field on the admin's "Manage event" page.
+- Added #scroll_to helper, which scrolls the page to an HTML element.
+- Added "cap db:use" task to dump and download remote database and
+  restore it locally.
+- Improved "rake db:raw:*" tasks to support proper database dump and
+  restore for MySQL, PostgreSQL and SQLite3.
+- Upgraded to jQuery 1.3.2 and jwysiwyg 0.6.
+
+* v0.20100206.1
+- FIXED rake use when not running the "test" environment.
+
+* v0.20100206
+
+- FIXED Event#underway? typo that would throw exception in schedule.
+- Improved Proposal's session notes wiki linkage to use flexible URLs.
+- Improved Proposal's export to iCalendar to include a time zone.
+- Improved Room, added picture of room.
+- Improved Proposal to only sort in a few specific ways.
+- Improved DeferProxy, made it simpler and more transparent.
+
+* v0.20090616
+
+- FIXED bug that showed proposal statuses (e.g., "Accepted session")
+  before these statues were published. They're now only shown if the
+  Admin sets the "Proposal statuses published?" flag on an event.
+- FIXED the login "remember me" feature. Previously it was ignored.
+- FIXED proposals feeds. Made top-level "/proposal.atom" and
+  event-specific "/events/2009/proposals.atom" feed. Also fixed the feed
+  article timestamps so proposals aren't relisted if edited.
+- FIXED the views to use "record-controls" wrappers around controls.
+- CHANGED logic for finding the current event: first try using the
+  "settings.yml" file's "current_event_slug" field and find an event
+  with a matching slug, else use the old latest-deadline logic. Setting
+  a current event is necessary if you have multiple open events and want
+  a specific one to respond to URLs like "/proposals".
+- CHANGED anonymous user's label from something like "myopenid.com" to
+  "User #123 at myopenid.com", which is much clearer.
+- CHANGED "rake db:dump" and "rake db:restore" to "rake db:raw:dump" and
+  "rake db:raw:restore" to avoid collisions with YamlDB.
+- Improved "rake db:raw:dump" and "rake db:raw:restore" to support both
+  SQLite and MySQL.
+- Improved proposal form, if an event has a single track or session
+  type, it's used as the default and no UI is shown. This helps child
+  events, e.g., parent has many tracks, child has one track.
+- Improved events, added parent/child relationships between them. Change
+  these these associations via the Admin's manage events UI.
+- Added user favorites, these show up as stars next to all proposals.
+- Added speaker list, e.g., "/events/2009/speakers".
+- Improved display of sublists (e.g., a user's sessions and proposals).
+  These list links back to sessions and display favorites.
+- Improved CSV exports for proposals and added these to speakers.
+- Improved session sidebox, added room and scheduling information.
+
+* v0.20090605
+
+- FIXED schema/migrations for MySQL, it was truncating important columns
+  to 255 characters. This fix upgrades these "varchar(255)" columns to
+  "text": proposal descriptions, schedule items excerpts and
+  descriptions, snippets descriptions, and tracks descriptions. If you
+  were using SQLite, you were not affected by this bug.
+
 * v0.20090524
 
 - FIXED layout, it no longer raises an exception if there's no event.

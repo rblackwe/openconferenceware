@@ -1,3 +1,21 @@
+# Display all the files required or loaded if the VERBOSE_LOADING environmental
+# variable is defined, e.g., "VERBOSE_LOAD=1 script/server"
+if ENV['VERBOSE_LOAD']
+  alias :require_without_announcer :require
+  def require_with_announcer(*args)
+    puts "require: #{args.inspect}"
+    require_without_announcer(*args)
+  end
+  alias :require :require_with_announcer
+
+  alias :load_without_announcer :load
+  def load_with_announcer(*args)
+    puts "load: #{args.inspect}"
+    load_without_announcer(*args)
+  end
+  alias :load :load_with_announcer
+end
+
 # Be sure to restart your server when you modify this file
 
 # Uncomment below to force Rails into production mode when
@@ -11,30 +29,13 @@ RAILS_GEM_VERSION = '~> 2.3.0' unless defined? RAILS_GEM_VERSION
 require File.join(File.dirname(__FILE__), 'boot')
 
 Rails::Initializer.run do |config|
-  # Gems that are selectively loaded
-  config.gem "sqlite3-ruby", :lib => false
-  config.gem "ruby-openid", :lib => false # Selectively loaded by open_id_authentication plugin
-  config.gem "facets", :lib => false # Selectively loaded by config/initializers/dependencies.rb
-  config.gem "right_aws", :lib => false # we aren't actually using AWS, but paperclip can, so it requires it.
+  # For more gem dependencies see:
+  # * Gemfile
+  # * config/initializers/libraries.rb
 
-  # Gems only used for development and test
-  if %w[development test].include?(RAILS_ENV) then
-    config.gem "rspec", :lib => false, :version => ">=1.2.2"
-    config.gem "rspec-rails", :lib => false, :version => ">=1.2.2"
-    config.gem "webrat", :lib => false, :version => ">=0.4.3"
-    config.gem "cucumber", :lib => false, :version => ">=0.2.2"
-  end
-
-  # Gems to load into the environment
-  config.gem "newrelic_rpm" if ENV['NEWRELIC'] # Only include NewRelic profiling if requested, e.g.,: NEWRELIC=1 ./script/server
-  config.gem "mbleigh-acts-as-taggable-on", :source => "http://gems.github.com", :lib => "acts-as-taggable-on"
-  config.gem "thoughtbot-paperclip", :source => "http://gems.github.com", :lib => 'paperclip'
-  config.gem "rubyist-aasm", :source => "http://gems.github.com", :lib => 'aasm'
-  config.gem "comma"
-  config.gem "gchartrb", :lib => "google_chart"
-  config.gem "vpim", :lib => 'vpim/icalendar'
-  config.gem "RedCloth"
-  config.gem 'color'
+  # Activate gems in vendor/gems
+  config.gem 'comma'
+  config.gem 'rwikibot'
 
   # Settings in config/environments/* take precedence over those specified here.
   # Application configuration should go into files in config/initializers
@@ -99,7 +100,7 @@ Rails::Initializer.run do |config|
   # Read settings
   require 'settings_reader'
   SETTINGS = SettingsReader.read(
-    theme_file("settings.yml"), {
+    theme_file('settings.yml'), {
       'public_url' => 'http://change_your/settings.yml/',
       'organization' => 'Default Organization Name',
       'Organization_slug' => 'defaultslug',
@@ -126,7 +127,7 @@ Rails::Initializer.run do |config|
 
   # Set cookie session
   config.action_controller.session = {
-    :session_key => SECRETS.session_name || "openproposals",
+    :session_key => SECRETS.session_name || 'openproposals',
     :secret => SECRETS.session_secret,
   }
 

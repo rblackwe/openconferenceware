@@ -9,10 +9,11 @@
 @kind ||= :proposal
 page_title h(@proposal.title)
 include_user_favorites_javascript
+run_when_dom_is_ready( 'bind_calendar_items();' )
 focus :comment_message if @focus_comment
 %>
 
-<%= render :partial => '/user_favorites/control', :locals => { :proposal => @proposal }%>
+<%= user_favorite_control_for @proposal %>
 <%= render :partial => "/proposals/admin_controls" %>
 
 <% cache "#{@kind}_#{@proposal.id},edit_#{can_edit?(@proposal)}" do %>
@@ -65,14 +66,16 @@ focus :comment_message if @focus_comment
 
 
   <div class='proposal-meta'>
-    <% if proposal_statuses? && @event.proposal_status_published? && @proposal.confirmed? %>
-      <div class='proposal-status <%= @proposal.status %>'>
-        Accepted Session
-      </div>
-    <% elsif proposal_statuses? @event.proposal_status_published? %>
-      <div class='proposal-status proposed'>
-        Proposal
-      </div>
+    <% if proposal_statuses? && @event.proposal_status_published? %>
+      <% if @proposal.confirmed? %>
+        <div class='proposal-status <%= @proposal.status %>'>
+          Accepted Session
+        </div>
+      <% else %>
+        <div class='proposal-status proposed'>
+          Proposal
+        </div>
+      <% end %>
     <% end %>
   <% if event_tracks? %>
       <div class='track block <%= track_css_class(@proposal.track) unless @proposal.track.ergo.title.blank? %>'>
@@ -85,9 +88,21 @@ focus :comment_message if @focus_comment
     <div class='proposal-slug'>
       <%= @proposal.slug %>
     </div>
+    <% if schedule_visible? && event_rooms? && @proposal.room && @proposal.start_time %>
+      <div class='proposal-scheduling'>
+        <b>Scheduled:</b>
+        <%= normalize_time(@proposal, :format => :html) %> 
+        in 
+        <%= link_to h(@proposal.room.name), @proposal.room %>
+      </div>
+    <% end %>
+    <% if @proposal.session_notes_url && @event.proposal_titles_locked? %>
+      <div class='proposal-notes'>
+        <%= link_to "Session notes", @proposal.session_notes_url, :class => "showable" %>
+      </div>
+    <% end -%>
   </div>
-
-
+  
   <% if proposal_excerpts? %>
     <h3>Excerpt</h3>
     <%= preserve_formatting_of @proposal.excerpt %>
@@ -101,30 +116,25 @@ focus :comment_message if @focus_comment
     <p><%= @proposal.tag_list %></p>
   <% end %>
 
-  <% if event_rooms? && @proposal.room %>
-    <h3>Room</h3>
-    <p><%= link_to h(@proposal.room.name), @proposal.room %>
-  <% end %>
-
   <% if can_edit?(@proposal) && ! @proposal.note_to_organizers.blank?%>
     <h3>Private Note to Organizers</h3>
     <%= preserve_formatting_of @proposal.note_to_organizers %>
   <% end %>
 
+  <div class="record-controls">
+    <% if can_edit?(@proposal) %>
+      <%= link_to 'Edit proposal', edit_proposal_path(@proposal), :class => "editable" %>
+      <%= link_to 'Destroy proposal', @proposal, :confirm => 'Are you sure?', :method => :delete, :class => "deletable" %>
+    <% end %>
+    <%= link_to "Back to list of #{@kind.to_s.pluralize}", records_path, :class => "cancelable" %>
+  </div>
+
   <% if multiple_presenters? %>
     <h3><%= @proposal.users.size == 1 ? "Speaker" : "Speakers" %></h3>
 
-    <%= render :partial => 'users/list', :locals => { :users => @proposal.users.by_name } %>
+    <%= render :partial => 'users/list', :locals => { :users => @proposal.users.by_name, :hide_rooms => true } %>
 
   <% end %>
-
-  <div class="record-controls">
-    <% if can_edit?(@proposal) %>
-      <%= link_to 'Edit', edit_proposal_path(@proposal), :class => "editable" %>
-      <%= link_to 'Destroy', @proposal, :confirm => 'Are you sure?', :method => :delete, :class => "deletable" %>
-    <% end %>
-      <%= link_to 'Back', records_path, :class => "cancelable" %>
-  </div>
 
 <% end %>
 

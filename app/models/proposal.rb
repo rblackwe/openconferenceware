@@ -1,29 +1,29 @@
 # == Schema Information
-# Schema version: 20090521012427
+# Schema version: 20090616061006
 #
 # Table name: proposals
 #
-#  id                 :integer         not null, primary key
-#  user_id            :integer
-#  presenter          :string(255)
-#  affiliation        :string(255)
-#  email              :string(255)
-#  website            :string(255)
-#  biography          :string(255)
-#  title              :string(255)
-#  description        :string(255)
-#  agreement          :boolean         default(TRUE)
-#  created_at         :datetime
-#  updated_at         :datetime
-#  event_id           :integer
-#  submitted_at       :datetime
-#  note_to_organizers :text
-#  excerpt            :text(400)
-#  track_id           :integer
-#  session_type_id    :integer
+#  id                 :integer(4)      not null, primary key
+#  user_id            :integer(4)      
+#  presenter          :string(255)     
+#  affiliation        :string(255)     
+#  email              :string(255)     
+#  website            :string(255)     
+#  biography          :text            
+#  title              :string(255)     
+#  description        :text            
+#  agreement          :boolean(1)      default(TRUE)
+#  created_at         :datetime        
+#  updated_at         :datetime        
+#  event_id           :integer(4)      
+#  submitted_at       :datetime        
+#  note_to_organizers :text            
+#  excerpt            :text            
+#  track_id           :integer(4)      
+#  session_type_id    :integer(4)      
 #  status             :string(255)     default("proposed"), not null
-#  room_id            :integer
-#  start_time         :datetime
+#  room_id            :integer(4)      
+#  start_time         :datetime        
 #
 
 class Proposal < ActiveRecord::Base
@@ -332,21 +332,66 @@ class Proposal < ActiveRecord::Base
     end
     return link
   end
+  
+  # Returns a string labeling a proposal object as either a proposal or a session depending on its state.
+  def kind_label
+    return self.confirmed? ? 'session' : 'proposal'
+  end
+  
+  # Returns URL of session notes for this proposal, if available.
+  # 
+  # Reads optional SETTINGS.session_notes_wiki_url_format. This 'printf' format
+  # contains positional variables that filled by Proposal#session_notes_url:
+  #   * %1 => site's public URL
+  #   * %2 => parent OR event slug
+  #   * %3 => event slug
+  #
+  # E.g., '%1$s%2$s/wiki/' may translate to 'http://my_site.com/my_parent_slug/wiki'
+  def session_notes_url
+    escape = lambda{|string| self.class._session_notes_url_escape(string)}
+
+    if SETTINGS.session_notes_wiki_url_format && ! self.title.blank?
+      return (
+        sprintf(
+          SETTINGS.session_notes_wiki_url_format,
+          SETTINGS.public_url,
+          escape[self.event.parent_or_self.slug],
+          escape[self.event.slug]
+        ) \
+        + escape[self.title]
+      )
+    end
+  end
+
+  # Return escaped string for use in a URL in the session notes wiki.
+  def self._session_notes_url_escape(string)
+    return CGI.escape(string.gsub(/\s+/, '_').squeeze('_'))
+  end
+
+  # Return the proposal's tite downcased or nil.
+  def title_downcased
+    return self.title.ergo.downcase
+  end
 
   # Return array of +proposals+ sorted by +field+ (e.g., "title") in +ascending+ order.
   def self.sort(proposals, field="title", is_ascending=true)
     proposals = \
       case field.to_sym
       when :track
-        without_tracks = proposals.reject(&:track)
-        with_tracks = proposals.select(&:track).sort_by{|proposal| [proposal.track, proposal.title]}
+        partitioned = proposals.partition{|proposal| proposal.track.nil?}
+        without_tracks = partitioned.first.sort_by(&:title)
+        with_tracks = partitioned.last.select(&:track).sort_by{|proposal| [proposal.track, proposal.title]}
         with_tracks + without_tracks
       when :start_time
         proposals.select{|proposal| !proposal.start_time.nil? }.sort_by{|proposal| proposal.start_time.to_i }.concat(proposals.select{|proposal| proposal.start_time.nil?})
       when :submitted_at
         proposals.sort_by(&:submitted_at)
+      when :title
+        proposals.sort_by{|proposal| proposal.title_downcased}
+      when :status
+        proposals.sort_by{|proposal| [proposal.status, proposal.title_downcased]}
       else
-        proposals.sort_by{|proposal| proposal.send(field).to_s.downcase rescue nil}
+        proposals.sort_by(&:submitted_at)
       end
     proposals = proposals.reverse unless is_ascending
     return proposals
@@ -362,7 +407,9 @@ class Proposal < ActiveRecord::Base
     title = opts[:title] || "Schedule"
     url_helper = opts[:url_helper]
 
-    calendar = Vpim::Icalendar.create2
+    calendar = Vpim::Icalendar.create2(Vpim::PRODID)
+    calendar.title = title
+    calendar.time_zone = Time.zone.tzinfo.name
     items.each do |item|
       calendar.add_event do |e|
         e.dtstart     item.start_time
@@ -371,11 +418,17 @@ class Proposal < ActiveRecord::Base
         e.created     item.created_at if item.created_at
         e.lastmod     item.updated_at if item.updated_at
         e.description item.excerpt
-        e.url         url_helper.call(item) if url_helper
-        e.set_text    'LOCATION', item.room.name if item.room
+        if item.room
+          e.set_text  'LOCATION', item.room.name 
+        end
+        if url_helper
+          url = url_helper.call(item)
+          e.url       url
+          e.uid       url
+        end
       end
     end
-    return calendar.encode.sub(/CALSCALE:Gregorian/, "CALSCALE:Gregorian\nX-WR-CALNAME:#{title} favorites\nMETHOD:PUBLISH")
+    return calendar.encode.sub(/CALSCALE:Gregorian/, "CALSCALE:Gregorian\nMETHOD:PUBLISH")
   end
 
   def self.populated_proposals_for(container)

@@ -12,14 +12,16 @@ class ProposalsController < ApplicationController
   before_filter :assert_user_complete_profile, :only => [:new, :edit, :update]
   before_filter :assign_proposals_breadcrumb
 
-  MAX_FEED_ITEMS = 20
+  MAX_FEED_ITEMS = 50
   SESSION_RELATED_ACTIONS = ['sessions_index', 'session_show', 'schedule']
 
   # GET /proposals
   # GET /proposals.xml
   def index
     @kind = :proposals
-    @proposals = Defer { @event.populated_proposals(@kind) }
+
+    assign_prefetched_hashes
+    @proposals = Defer { @proposals_hash.values }
 
     unless params[:sort]
       params[:sort] = "submitted_at"
@@ -38,16 +40,23 @@ class ProposalsController < ApplicationController
       }
       format.atom {
         # index.atom.builder
+        if @event_assignment == :assigned_to_param
+          @cache_key = "proposals_atom,event_#{@event.id}"
+          @proposals = Defer { @event.populated_proposals(:proposals).all(:order => "submitted_at desc", :limit => MAX_FEED_ITEMS) }
+        else
+          @cache_key = "proposals_atom,all"
+          @proposals = Defer { Proposal.populated.all(:order => "submitted_at desc", :limit => MAX_FEED_ITEMS) }
+        end
       }
       format.csv {
+        records = @event.populated_proposals(@kind).all(:include => :comments)
         if admin?
-          @proposals.scoped(:include => [:comments])
-          render :csv => @proposals.all, :style => :admin
+          render :csv => records, :style => :admin
         else
           if schedule_visible?
-            render :csv => @proposals.all, :style => :schedule
+            render :csv => records, :style => :schedule
           else
-            render :csv => @proposals.all
+            render :csv => records
           end
         end
       }
@@ -56,7 +65,9 @@ class ProposalsController < ApplicationController
 
   def sessions_index
     @kind = :sessions
-    @proposals = Defer { @event.populated_proposals(@kind) }
+
+    assign_prefetched_hashes
+    @proposals = Defer { @sessions_hash.values }
 
     params[:sort] ||= "track"
 
@@ -78,6 +89,7 @@ class ProposalsController < ApplicationController
     page_title 'Schedule'
 
     @schedule = Defer { Schedule.new(@event) }
+    assign_prefetched_hashes
 
     respond_to do |format|
       format.html {
@@ -87,20 +99,10 @@ class ProposalsController < ApplicationController
       format.ics {
         view_cache_key = "schedule,event_#{@event.id}.ics"
         data = Rails.cache.fetch_object(view_cache_key) {
-          calendar = Vpim::Icalendar.create2
-          @schedule.items.each do |item|
-            calendar.add_event do |e|
-              e.dtstart     item.start_time
-              e.dtend       item.start_time + item.duration.minutes
-              e.summary     item.title
-              e.created     item.created_at if item.created_at
-              e.lastmod     item.updated_at if item.updated_at
-              e.description item.excerpt
-              e.url         session_url(item)
-              e.set_text    'LOCATION', item.room.name if item.room
-            end
-          end
-          calendar.encode.sub(/CALSCALE:Gregorian/, "CALSCALE:Gregorian\nX-WR-CALNAME:#{@event.title}\nMETHOD:PUBLISH")
+          Proposal.to_icalendar(
+            @schedule.items,
+            :title => "#{@event.title}",
+            :url_helper => lambda {|item| session_url(item)})
         }
         render :text => data
       }
@@ -234,8 +236,13 @@ class ProposalsController < ApplicationController
   # PUT /proposals/1.xml
   def update
     # @proposal and @event set via #assign_proposal_and_event filter
+    
+    # If proposal title editing is locked, prevent non-admin from modifying title.
+    if params[:proposal] && @event.proposal_titles_locked? && ! admin?
+      params[:proposal].delete(:title)
+    end
 
-    if params[:start_time]
+    if params[:start_time] && admin?
       if params[:start_time][:date].blank? || params[:start_time][:hour].blank? || params[:start_time][:minute].blank?
         @proposal.start_time = nil
       else

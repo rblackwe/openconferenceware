@@ -11,7 +11,6 @@ ActionController::Routing::Routes.draw do |map|
   map.search_proposal_speakers '/proposals/search_speakers/:id', :controller => 'proposals', :action => 'search_speakers', :requirements => { :method => :post }
 
   map.sessions '/sessions', :controller => 'proposals', :action => 'sessions_index'
-  map.schedule '/schedule', :controller => 'proposals', :action => 'schedule'
   map.session '/sessions/:id', :controller => 'proposals', :action => 'session_show'
 
   map.resources :events, :member => { :speakers => :get } do |event|
@@ -24,6 +23,9 @@ ActionController::Routing::Routes.draw do |map|
     event.schedule '/schedule', :controller => 'proposals', :action => 'schedule'
     event.session '/sessions/:id', :controller => 'proposals', :action => 'session_show'
   end
+  
+  map.schedule '/schedule', :controller => 'proposals', :action => 'schedule'
+  map.formatted_schedule '/schedule.:format', :controller => 'proposals', :action => 'schedule'
 
   map.namespace :manage do |manage|
     manage.root :controller => 'events', :action => 'index'
@@ -39,7 +41,7 @@ ActionController::Routing::Routes.draw do |map|
   map.m1ss  '/m1ss',  :controller => 'proposals', :action => 'm1ss'
 
   # Authentication
-  map.resources :users, :member => { :complete_profile => :get }, :requirements => { :id => /\w+/ } do |user|
+  map.resources :users, :member => { :complete_profile => :get, :proposals => :get }, :requirements => { :id => /\w+/ } do |user|
     user.favorites 'favorites', { :controller => 'user_favorites', :action => 'index' }
     user.modify_favorites 'favorites/modify', { :controller => 'user_favorites', :action => 'modify', :conditions => { :method => :put } }
   end

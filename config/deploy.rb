@@ -32,18 +32,31 @@
 #
 #  8. If you deployed a broken revision, you can rollback to the previous, e.g.,:
 #       cap mysite deploy:rollback
-ssh_options[:compression] = false
+#
+# == Paths
+#
+# There are various paths used in the tasks:
+# * current_path: The 'current' directory linked to the current release
+# * release_path: The current release within the 'release' directory
+# * shared_path: The 'shared' directory with common data, e.g., logs
 
-set :application, "openproposals"
+# General settings
+ssh_options[:compression] = false
+default_run_options[:pty] = true
 set :use_sudo, false
+
+# Name
+set :application, "openconferenceware"
 
 # Load stages from config/deploy/*
 set :stages, Dir["config/deploy/*.rb"].map{|t| File.basename(t, ".rb")}
 require 'capistrano/ext/multistage'
 
-# :current_path - 'current' symlink pointing at current release
-# :release_path - 'release' directory being deployed
-# :shared_path - 'shared' directory with shared content
+# Print the command and then execute it, just like Rake
+def sh(command)
+  puts command
+  system command
+end
 
 namespace :deploy do
   desc "Restart Passenger application"
@@ -59,13 +72,22 @@ namespace :deploy do
   end
 
   desc "Prepare shared directories"
-  task :prepare_shared do
+  task :prepare_shared, :roles => :app do
     run "mkdir -p #{shared_path}/config"
     run "mkdir -p #{shared_path}/db"
+    run "mkdir -p #{shared_path}/system/shared_fragments"
   end
 
-  desc "Set the application's secrets"
-  task :secrets_yml do
+
+  desc "Finish update, called by deploy"
+  task :finish, :roles => :app do
+    # Gems
+    run "cd #{release_path} && (bundle check || bundle install) && bundle lock"
+
+    # Theme
+    put theme, "#{release_path}/config/theme.txt"
+
+    # Secrets
     source = "#{shared_path}/config/secrets.yml"
     target = "#{release_path}/config/secrets.yml"
     begin
@@ -80,10 +102,8 @@ ERROR!  You must have a file on your server to store secret information.
       HERE
       raise e
     end
-  end
 
-  desc "Generate database.yml"
-  task :database_yml do
+    # Database
     source = "#{shared_path}/config/database.yml"
     target = "#{release_path}/config/database.yml"
     begin
@@ -100,24 +120,41 @@ ERROR!  You must have a file on your server with the database configuration.
     end
   end
 
-  desc "Set the application's theme"
-  task :theme_txt do
-    run "echo #{theme} > #{release_path}/config/theme.txt"
-  end
-
   desc "Clear the application's cache"
-  task :clear_cache do
+  task :clear_cache, :roles => :app do
     run "(cd #{current_path} && rake RAILS_ENV=production clear)"
   end
 end
 
-# After setup
+namespace :db do
+  namespace :remote do
+    desc "Dump database on remote server"
+    task :dump, :roles => :db, :only => {:primary => true} do
+      run "(cd #{current_path} && rake RAILS_ENV=production db:raw:dump FILE=#{shared_path}/db/database.sql)"
+    end
+  end
+
+  namespace :local do
+    desc "Restore downloaded database on local server"
+    task :restore, :roles => :db, :only => {:primary => true} do
+      sh "rake db:raw:dump FILE=database~old.sql && rake db:raw:restore FILE=database.sql"
+    end
+  end
+
+  desc "Download database from remote server"
+  task :download, :roles => :db, :only => {:primary => true} do
+    sh "rsync -uvax #{user}@#{host}:#{shared_path}/db/database.sql ."
+  end
+
+  desc "Use: dump and download remote database and restore it locally"
+  task :use, :roles => :db, :only => {:primary => true} do
+    db.remote.dump
+    db.download
+    db.local.restore
+  end
+end
+
+# Hooks
 after "deploy:setup", "deploy:prepare_shared"
-
-# After finalize_update
-after "deploy:finalize_update", "deploy:database_yml"
-after "deploy:finalize_update", "deploy:secrets_yml"
-after "deploy:finalize_update", "deploy:theme_txt"
-
-# After symlink
+after "deploy:finalize_update", "deploy:finish"
 after "deploy:symlink", "deploy:clear_cache"

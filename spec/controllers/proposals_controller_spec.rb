@@ -37,10 +37,11 @@ describe ProposalsController do
         before do
           SETTINGS.stub!(:have_user_profiles => true)
           SETTINGS.stub!(:have_multiple_presenters => true)
+          stub_current_event!(:event => @event)
 
           get :index, :event_id => @event.slug, :format => "csv"
 
-          @rows = CSV::Reader.parse(response.body).inject([]){|result,row| result << row; result}
+          @rows = CSV::Reader.parse(response.body).to_a
           @header = @rows.first
         end
 
@@ -53,16 +54,45 @@ describe ProposalsController do
         end
       end
 
+      describe "shared non-admin CSV behaviors", :shared => true do
+        it "should not see private fields" do
+          @header.should_not include("Emails")
+        end
+      end
+
       describe "anonymous user" do
         before do
           logout
         end
 
-        it_should_behave_like "shared CSV behaviors"
+        describe "with visible schedule" do
+          before do
+            @controller.stub!(:schedule_visible? => true)
+          end
 
-        it "should not see private fields" do
-          @header.should_not include("Emails")
+          it_should_behave_like "shared CSV behaviors"
+
+          it_should_behave_like "shared non-admin CSV behaviors"
+
+          it "should see schedule fields" do
+            @header.should include("Start Time")
+          end
         end
+
+        describe "without visible schedule" do
+          before do
+            @controller.stub!(:schedule_visible? => false)
+          end
+
+          it_should_behave_like "shared CSV behaviors"
+
+          it_should_behave_like "shared non-admin CSV behaviors"
+
+          it "should not see schedule fields" do
+            @header.should_not include("Start Time")
+          end
+        end
+
       end
 
       describe "mortal user" do
@@ -72,9 +102,7 @@ describe ProposalsController do
 
         it_should_behave_like "shared CSV behaviors"
 
-        it "should not see private fields" do
-          @header.should_not include("Emails")
-        end
+        it_should_behave_like "shared non-admin CSV behaviors"
       end
 
       describe "admin user" do
@@ -122,8 +150,7 @@ describe ProposalsController do
         get :index, :event_id => @event.slug, :format => "xml"
 
         @proposals = assigns(:proposals)
-        @struct = Hash.from_xml(response.body)
-        @records = @struct['records']
+        @records = ActiveResource::Formats::XmlFormat.decode(response.body)
         @record = @records.first
       end
 
@@ -196,8 +223,7 @@ describe ProposalsController do
 
         event = Event.current
 
-        # TODO Why is #find being called more than once?!
-        event.proposals.should_receive(:find).twice.and_return([proposal])
+        event.proposals.should_receive(:find).and_return([proposal])
 
         stub_current_event!(:event => event)
 
@@ -209,6 +235,40 @@ describe ProposalsController do
         get :index, :sort => "destroy"
       end
 
+    end
+
+    describe "when returning ATOM" do
+      def get_entry(proposal_symbol)
+        title = proposals(proposal_symbol).title
+        return @struct['entry'].find{|t| t['title'] == title}
+      end
+
+      describe "for /proposals.atom" do
+        before do
+          get :index, :format => "atom"
+          @struct = ActiveResource::Formats::XmlFormat.decode(response.body)
+        end
+
+        it "should include proposals from multiple events" do
+          get_entry(:clio_chupacabras).should_not be_nil
+          get_entry(:aaron_aardvarks).should_not be_nil
+        end
+      end
+
+      describe "for /events/:event_id/proposals.atom" do
+        before do
+          get :index, :format => "atom", :event_id => @event.slug
+          @struct = ActiveResource::Formats::XmlFormat.decode(response.body)
+        end
+
+        it "should include proposals from this event" do
+          get_entry(:aaron_aardvarks).should_not be_nil
+        end
+
+        it "should not include proposals from other events" do
+          get_entry(:clio_chupacabras).should be_nil
+        end
+      end
     end
 
   end
@@ -257,7 +317,7 @@ describe ProposalsController do
       stub_current_event!(:event => event)
       get :sessions_index, :event => 1234
 
-      response.should redirect_to(proposals_url)
+      response.should redirect_to(event_proposals_url(event))
     end
 
     it "should redirect /sessions to proposals unless proposal status is published" do
@@ -265,7 +325,7 @@ describe ProposalsController do
       stub_current_event!(:event => event, :status => :assigned_to_current)
       get :sessions_index, :format => :html
 
-      response.should redirect_to(proposals_url)
+      response.should redirect_to(event_proposals_url(event))
     end
 
     it "should normalize /sessions if proposal status is published" do
@@ -274,6 +334,14 @@ describe ProposalsController do
       get :sessions_index, :format => :html
 
       response.should redirect_to(event_sessions_path(event))
+    end
+
+    it "should normalize /schedule if proposal status is published" do
+      event = stub_model(Event, :proposal_status_published? => true, :schedule_published? => true, :id => 1234, :slug => 'event_slug')
+      stub_current_event!(:event => event, :status => :assigned_to_current)
+      get :schedule, :format => :html
+
+      response.should redirect_to(event_schedule_path(event))
     end
   end
 
@@ -286,10 +354,22 @@ describe ProposalsController do
       assigns(:proposal).should == proposal
     end
 
-    it "should fail to display non-existent proposal" do
+    it "should redirect back to proposals list if asked to display a non-existent proposal" do
       get :show, :id => -1
 
+      flash[:failure].should_not be_blank
       response.should redirect_to(proposals_url)
+    end
+
+    it "should redirect back to proposals list if asked to display a proposal without an event" do
+      proposal = proposals(:quentin_widgets)
+      proposal.stub!(:event => nil)
+      Proposal.stub!(:find_by_id => proposal, :find => proposal, :lookup => proposal)
+
+      get :show, :id => proposal.id
+
+      flash[:failure].should_not be_blank
+      response.should redirect_to(event_proposals_path(events(:open)))
     end
 
     describe "redirect" do
@@ -362,6 +442,21 @@ describe ProposalsController do
         end
       end
 
+      describe "non-current event" do
+        integrate_views false
+        it "should not redirect a published session of an old event if current event isn't publishing sesions" do
+          current_event = stub_model(Event, :slug => 'new', :proposal_status_published => false)
+          old_event = stub_model(Event, :slug => 'old', :proposal_status_published => true)
+          old_session_user = users(:clio)
+          old_session = stub_model(Proposal, :status => 'confirmed', :event => old_event, :users => [old_session_user])
+
+          Proposal.stub!(:find => old_session, :find_by_id => old_session, :lookup => old_session)
+          Event.stub!(:current => current_event)
+
+          get :session_show, :id => old_session.id
+          response.should be_success
+        end
+      end
     end
   end
 
@@ -508,7 +603,7 @@ describe ProposalsController do
         get :edit, :id => proposal.id
 
         pending "FIXME when should people not be able to edit proposals?"
-        response.should redirect_to(event_proposals_url(proposal.event))
+        response.should redirect_to(event_proposals_path(proposal.event))
       end
 
       it "should allow admin to edit" do
@@ -660,7 +755,7 @@ describe ProposalsController do
     def assert_update(login=nil, inputs={}, &block)
       login ? login_as(login) : logout
       # TODO extract :commit?
-      put :update, :id => inputs['id'] || inputs[:id], :proposal => inputs, :commit => 'really'
+      put :update, :id => ( inputs['id'] || inputs[:id] ), :proposal => inputs, :commit => 'really'
       block.call
     end
 
@@ -668,6 +763,18 @@ describe ProposalsController do
       @user = users(:quentin)
       @proposal = proposals(:quentin_widgets)
       @inputs = @proposal.attributes.clone
+    end
+    
+    it "should prevent editing of title when proposal titles are locked" do
+      @event = stub_current_event!
+      @event.stub!(:proposal_titles_locked?).and_return(true)
+      @controller.stub!(:get_proposal_and_assignment_status).and_return(@proposal)
+      @proposal.stub!(:event).and_return(@event)
+      
+      assert_update(:quentin, :id => @proposal.id, :title => 'OMG') do
+        @proposal.reload
+        @proposal.title.should_not == 'OMG'
+      end
     end
 
     it "should redirect anonymous user to login" do
@@ -910,5 +1017,4 @@ describe ProposalsController do
       end
     end
   end
-
 end

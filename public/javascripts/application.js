@@ -234,8 +234,8 @@ function bind_manage_proposals_checkboxes() {
 /*---[ proposals sub lists ]------------------------------------------*/
 
 // Change the UI of the proposal_sub_list so that the proposals are hidden behind a link.
-function archive_proposals_sub_list() {
-  var container = $('#proposals_sub_list_for_kind_proposals');
+function archive_proposals_sub_list(event_id) {
+  var container = $('#sub_list_for_event_'+event_id+' .proposals_sub_list_for_kind_proposals');
   var toggle = container.find('.proposals_sub_list_for_kind_toggle');
   var content = container.find('.proposals_sub_list_for_kind_content');
   toggle.click(function(event) {
@@ -251,8 +251,8 @@ function archive_proposals_sub_list() {
 
 /*---[ schedule hover ]----------------------------------------------*/
 
-$(document).ready(function() {
-  $('table.schedule li.vevent').hover(
+function bind_calendar_items() {
+  $('ul.calendar_items li.vevent').hover(
     function() {
       $(this).addClass('hover');
       box = $(this).children('.session_info');
@@ -268,9 +268,26 @@ $(document).ready(function() {
       $(this).children('.session_info').css('top',0);
     }
   )
-})
+}
+
+
 
 /*---[ user favorites ]----------------------------------------------*/
+
+// Return the proposal_id (e.g., "266") bound to a user favorite control, which
+// is a JQuery +element+ object.
+var proposal_id_pattern = /^favorite_(\d+)$/;
+function proposal_id_for(element) {
+  var klasses = element.attr('class').split(' ');
+  for (i in klasses) {
+    klass = klasses[i];
+    var matcher = klass.match(proposal_id_pattern);
+    if (matcher) {
+      return matcher[1];
+    }
+  }
+  return null;
+}
 
 function bind_user_favorite_controls() {
   $('.favorite').each(function() {
@@ -286,6 +303,7 @@ function bind_user_favorite_controls() {
       target.addClass('working');
 
       mode = target.hasClass('checked') ? 'remove' : 'add';
+      proposal_id = proposal_id_for(target);
 
       $.ajax({
         'type': 'PUT',
@@ -293,25 +311,25 @@ function bind_user_favorite_controls() {
         'dataType': 'json',
         'data': {
           'authenticity_token': app.authenticity_token,
-          'proposal_id': target.attr('id').split('_').pop(),
+          'proposal_id': proposal_id,
           'mode': mode
         },
         'complete': function(request,status){
           target.removeClass('working');
         },
         'success': function(data, status) {
+          nodes = $('.favorite_'+proposal_id);
           switch(mode) {
           case 'add':
-            target.addClass('checked');
+            nodes.addClass('checked');
             break;
           case 'remove':
-            target.removeClass('checked');
+            nodes.removeClass('checked');
             break;
           }
         },
         'error': function(request, status, error) {
-          alert('There was an error.' + status + error);
-          // TODO Specify what error has occurred.
+          alert('There was an error! Status: ' + status + ". Error: " + error);
         }
       });
     }
@@ -324,7 +342,7 @@ function populate_user_favorites() {
     $.getJSON( app.favorites_path + '.json?join=1',
       function(data) {
         jQuery.each( data, function(i, fav) {
-          $( '#favorite_' + fav.proposal_id ).addClass('checked');
+          $( '.favorite_' + fav.proposal_id ).addClass('checked');
         });
       }
     )

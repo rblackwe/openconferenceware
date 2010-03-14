@@ -1,7 +1,7 @@
-# = Observist
+# = CacheWatcher
 #
 # Watches for changes in models and expires the cache.
-class Observist < ActiveRecord::Observer
+class CacheWatcher < ActiveRecord::Observer
   # Watch for changes in these classes:
   observe \
     Comment,
@@ -18,7 +18,7 @@ class Observist < ActiveRecord::Observer
 
   # Expire the cache
   def self.expire(*args)
-    Rails.logger.info("Observist: expiring cache")
+    Rails.logger.info("CacheWatcher: expiring cache")
     case Rails.cache
     when ActiveSupport::Cache::MemCacheStore
       Rails.cache.instance_variable_get(:@data).flush_all

@@ -3,5 +3,5 @@ task :clear => ["tmp:clear", "theme_remove_cache", "clear:cache"]
 
 desc "Clear cache"
 task "clear:cache" => :environment do
-  Observist.expire
+  CacheClear.expire
 end

@@ -4,7 +4,7 @@
 source :gemcutter
 
 # Rails version, which must be specified here AND in the environment.rb:
-gem "rails", "~> 2.1.2", :require => nil
+gem "rails", "~> 2.3.0", :require => nil
 
 # Selectively-loaded:
 gem 'sqlite3-ruby', :lib => false # For default database driver
@@ -24,6 +24,7 @@ gem 'color'
 gem 'deep_merge'
 gem 'hpricot'
 gem 'fastercsv'
+gem 'comma',               :version => '~> 0.3.2'
 
 group :development do
   gem 'ruby-debug',     :lib => false

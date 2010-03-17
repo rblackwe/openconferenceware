@@ -183,9 +183,9 @@
             <li id="subscribe-to">
               <h3>Subscribe to</h3>
               <ul>
-                <li class="pre-bulletted"><%= link_to "Proposals feed", formatted_proposals_path(:atom), :class => :feedable %></li>
+                <li class="pre-bulletted"><%= link_to "Proposals feed", proposals_path(:format => :atom), :class => :feedable %></li>
                 <% if admin? %>
-                  <li class="pre-bulletted"><%= link_to "Comments feed", formatted_comments_path(:atom, :secret => CommentsController::SECRET), :class => 'feedable' %></li>
+                  <li class="pre-bulletted"><%= link_to "Comments feed", comments_path(:format => :atom, :secret => CommentsController::SECRET), :class => 'feedable' %></li>
                 <% end %>
               </ul>
             </li>

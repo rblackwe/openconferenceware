@@ -152,19 +152,6 @@
               </li>
             <% end %>
 
-<<<<<<< HEAD:themes/bridgepdx/views/layouts/application.html.erb
-            <li id="subscribe-to">
-              <h3>Subscribe to</h3>
-              <ul>
-                <li class="pre-bulletted"><%= link_to "Proposals feed", proposals_path(:format => :atom), :class => :feedable %></li>
-                <% if admin? %>
-                  <li class="pre-bulletted"><%= link_to "Comments feed", comments_path(:format => :atom, :secret => CommentsController::SECRET), :class => 'feedable' %></li>
-                <% end %>
-              </ul>
-            </li>
-
-=======
->>>>>>> master:themes/bridgepdx/layouts/application.html.erb
             <% if events_picker? %>
               <li id="proposals-for">
                 <h3>Proposals for</h3>

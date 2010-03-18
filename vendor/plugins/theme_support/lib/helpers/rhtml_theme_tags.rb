@@ -50,15 +50,15 @@ module ActionView::Helpers::AssetTagHelper
    # This tag can be used to return theme-specific javscripts
    def theme_javascript_include_tag(*sources)
      options = sources.last.is_a?(Hash) ? sources.pop.stringify_keys : { }
-     if sources.include?(:defaults)
-       sources = sources[0..(sources.index(:defaults))] +
-         @@javascript_default_sources.dup +
+     if sources.include?(:defaults)        
+       sources = sources[0..(sources.index(:defaults))] + 
+         @@javascript_default_sources.dup + 
          sources[(sources.index(:defaults) + 1)..sources.length]
-       sources.delete(:defaults)
-       sources << "application" if defined?(RAILS_ROOT) && File.exists?("#{RAILS_ROOT}/public/javascripts/application.js")
+       sources.delete(:defaults) 
+       sources << "application" if defined?(RAILS_ROOT) && File.exists?("#{RAILS_ROOT}/public/javascripts/application.js") 
      end
      sources.collect { |source|
-       source = theme_javascript_path(source)
+       source = theme_javascript_path(source)        
        content_tag("script", "", { "type" => "text/javascript", "src" => source }.merge(options))
      }.join("\n")
    end

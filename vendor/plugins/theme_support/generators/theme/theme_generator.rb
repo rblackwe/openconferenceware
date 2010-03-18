@@ -1,5 +1,5 @@
 class ThemeGenerator < Rails::Generator::NamedBase
-
+     
    def manifest
       record do |m|
           # Theme folder(s)

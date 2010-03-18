@@ -25,7 +25,7 @@ class Themeitem < Liquid::Block
       elsif @@javascript_exts.include?( ext )
          "#{base_url}/themes/#{theme_name}/javascript/#{filename}"
       end
-   end
+   end   
 end
 
 Liquid::Template.register_tag( 'themeitem', Themeitem )

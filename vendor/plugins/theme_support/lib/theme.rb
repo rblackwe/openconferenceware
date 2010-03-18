@@ -9,29 +9,29 @@ class Theme
     @title = name.underscore.humanize.titleize
     @description_html = nil
   end
-
+ 
   def description
     if @description_html.nil?
       @description_html = RedCloth.new(File.read( File.join(Theme.path_to_theme(name), "about.markdown") )).to_html(:markdown, :textile) rescue "#{title}"
     end
     @description_html
   end
-
+  
   def has_preview?
     File.exists?( File.join( Theme.path_to_theme(name), 'images', 'preview.png' ) ) rescue false
   end
-
+  
   def preview_image
     'preview.png'
   end
-
+    
   def self.find_all
     installed_themes.inject([]) do |array, path|
       array << theme_from_path(path)
     end
   end
 
-private
+private 
 
   def self.themes_root
     File.join(RAILS_ROOT, "themes")
@@ -48,11 +48,11 @@ private
 
   def self.installed_themes
     cache_theme_lookup ? @theme_cache ||= search_theme_directory : search_theme_directory
-  end
+  end  
 
   def self.search_theme_directory
     Dir.glob("#{themes_root}/[-_a-zA-Z0-9]*").collect do |file|
-      file if File.directory?(file)
+      file if File.directory?(file) 
     end.compact
-  end
+  end  
 end

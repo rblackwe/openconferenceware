@@ -1,14 +1,7 @@
-# Extend the Base ActionController to support themes
+# Extend the Base ActionMailer to support themes
 module ActionMailer
   class Base
-  
-    alias_method :__render, :render
-    alias_method :__initialize, :initialize
-
-    @current_theme = nil
-  
-    attr_accessor :current_theme
-
+   
     def initialize(method_name=nil, *parameters)
       if parameters[-1].is_a?(Hash) and (parameters[-1].include? :theme)
         @current_theme = parameters[-1][:theme]
@@ -24,13 +17,13 @@ module ActionMailer
 
       tpaths = []
       theme_template_roots = {}
-
+      
       if self.current_theme
-        path = File.join(RAILS_ROOT, "themes", self.current_theme, "views", mailer_name)
+        path = File.join(RAILS_ROOT, "themes", self.current_theme, "views", mailer_name) 
         tpaths << path
         theme_template_roots[path] = ActionView::Base.process_view_paths(File.dirname(path)).first
       end
-
+      
       tpaths << File.join(RAILS_ROOT, template_path)
       theme_template_roots[File.join(RAILS_ROOT, template_path)] = template_root
 
@@ -42,7 +35,7 @@ module ActionMailer
         # have not already been specified manually.
 
         if @parts.empty?
-
+          
           tpaths.each do |tpath|
             Dir.glob("#{tpath}/#{@template}.*").each do |path|
               template = theme_template_roots[tpath]["#{mailer_name}/#{File.basename(path)}"]
@@ -73,7 +66,7 @@ module ActionMailer
         tpaths.each do |tpath|
           template_exists ||= template_root["#{tpath}/#{@template}"]
           if template_exists
-            @body = render_message(@template, @body)
+            @body = render_message(@template, @body) 
             break
           end
         end
@@ -94,8 +87,5 @@ module ActionMailer
       # build the mail object itself
       @mail = create_mail
     end
-
-
-   
   end
 end

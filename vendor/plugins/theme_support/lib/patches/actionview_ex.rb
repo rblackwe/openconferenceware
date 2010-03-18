@@ -1,8 +1,8 @@
 module ActionView
   class Base
-
+    
     alias_method :theme_support_old_view_paths, :view_paths
-
+    
     def view_paths
       paths = theme_support_old_view_paths
 

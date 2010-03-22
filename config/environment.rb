@@ -23,7 +23,7 @@ end
 # ENV['RAILS_ENV'] ||= 'production'
 
 # Specifies gem version of Rails to use when vendor/rails is not present
-RAILS_GEM_VERSION = '~> 2.3.0' unless defined? RAILS_GEM_VERSION
+RAILS_GEM_VERSION = '~> 2.3.5' unless defined? RAILS_GEM_VERSION
 
 # Bootstrap the Rails environment, frameworks, and default configuration
 require File.join(File.dirname(__FILE__), 'boot')
@@ -35,10 +35,6 @@ Rails::Initializer.run do |config|
   # For more gem dependencies see:
   # * Gemfile
   # * config/initializers/libraries.rb
-
-  # Activate gems in vendor/gems
-  config.gem 'comma'
-  config.gem 'rwikibot'
 
   # Settings in config/environments/* take precedence over those specified here.
   # Application configuration should go into files in config/initializers

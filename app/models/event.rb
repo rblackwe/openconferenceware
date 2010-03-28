@@ -203,6 +203,8 @@ class Event < ActiveRecord::Base
 
   # Return the parent event or this Event.
   def parent_or_self
-    return self.parent || self
+    return self.parent_id ?
+      self.parent :
+      self
   end
 end

@@ -1,5 +1,10 @@
 # Methods added to this helper will be available to all templates in the application.
 module ApplicationHelper
+  # Should the web analytics tracking be enabled?
+  def track_with_analytics?
+    return RAILS_ENV == 'production' || ENV['WEBANALYTICS'] == '1'
+  end
+
   def notice
     # XXX Replace with flash conductor plugin?
     unless flash.blank?

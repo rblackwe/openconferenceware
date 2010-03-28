@@ -7,11 +7,13 @@ OpenConferenceWare stable releases and changes included, with latest at top:
 - FIXED "/events/EVENTID/proposals/stats" to use per-event caching.
 - FIXED "rake setup:sample" to work with an empty database.
 - FIXED exception handling to display clearer messages and correctly handle rendering errors in the layout.
+- FIXED handling of multiple events: reworked layout, header, menu, favorites, tracks, etc.
 - CHANGED Gem dependencies to use Bundler, install the "bundler" gem and then run "bundle install" to install the application's dependencies. If you're deploying via Capistrano, they will automatically be installed for you.
 - CHANGED "bridgepdx" theme for 2010, it uses a new menu that provides a way to pick events and their associated data.
-- Improved handling of multiple events: reworked layout, header, menu, favorites, tracks, etc.
 - Added shared fragments, which are local files that can be included in different applications, e.g., a header to include in WordPress and wiki.
 - Added task to update thumbnails: `rake paperclip:refresh CLASS=User`
+- Improved "bridgepdx" theme to defer loading of remote web analytics, so local JavaScript activates more quickly.
+- Improved "README", described the various custom environmental variables that affect the application's behavior.
 
 * v0.20100218
 - FIXED event-related checks to use a proposal's event when possible,

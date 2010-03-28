@@ -198,7 +198,7 @@ class User < ActiveRecord::Base
 
   def remember_me_until(time)
     self.remember_token_expires_at = time
-    self.remember_token            = encrypt("#{email}--#{remember_token_expires_at}")
+    self.remember_token            = encrypt([self.id, self.login, remember_token_expires_at, Time.now.to_i, (1..10).map{rand.to_s}].join('|'))
     save(false)
   end
 
@@ -220,6 +220,7 @@ class User < ActiveRecord::Base
     user.email = registration["email"]
     user.fullname = registration["fullname"]
     user.using_openid = true
+    user.add_salt
     user.save!
     return user
   end
@@ -293,11 +294,16 @@ class User < ActiveRecord::Base
     return self.proposals.confirmed
   end
 
+  # Add encryption salt to record if needed.
+  def add_salt
+    self.salt ||= Digest::SHA1.hexdigest([self.id, self.login, Time.now.to_i, (1..10).map{rand.to_s}].join('|'))
+  end
+
 protected
 
   def encrypt_password
     return if password.blank?
-    self.salt = Digest::SHA1.hexdigest("--#{Time.now.to_s}--#{login}--") if new_record?
+    self.add_salt
     self.crypted_password = encrypt(password)
   end
 

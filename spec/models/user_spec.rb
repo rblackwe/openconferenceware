@@ -101,4 +101,32 @@ describe User do
       User.find_first_non_admin.should be_nil
     end
   end
+
+  describe "remember_token" do
+    before do
+      @user1 = User.create_from_openid!('http://foo', {})
+      @user1.remember_me
+
+      @user2 = User.create_from_openid!('http://bar', {})
+      @user2.remember_me
+    end
+
+    it "should have a salt" do
+      @user1.salt.should_not be_blank
+      @user2.salt.should_not be_blank
+    end
+
+    it "should have a unique salt" do
+      @user1.salt.should_not == @user2.salt
+    end
+
+    it "should have a remember token" do
+      @user1.remember_token.should_not be_blank
+      @user2.remember_token.should_not be_blank
+    end
+
+    it "should have a unique remember token" do
+      @user1.remember_token.should_not == @user2.remember_token
+    end
+  end
 end

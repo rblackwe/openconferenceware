@@ -7,16 +7,11 @@ source :gemcutter
 gem "rails", "~> 2.3.5", :require => nil
 
 # Selectively-loaded:
-gem 'sqlite3-ruby' # For default database driver
-gem 'mysql'        # For commonly used database driver
-gem 'rack-openid'  # For open_id_authentication
-gem 'right_aws'    # For paperclip
-
-group :conflict do
-  # Only a subset of facets is needed but this pulls in everything, resulting in breakage
-  # because of conflicts with activesupport (e.g., cattr_accessor and friends)
-  gem 'facets'       # For config/initializers/libraries.rb
-end
+gem 'sqlite3-ruby', :lib => false # For default database driver
+gem 'mysql',        :lib => false # For commonly used database driver
+gem 'rack-openid',  :lib => false # For open_id_authentication
+gem 'right_aws',    :lib => false # For paperclip
+gem 'facets',       :lib => false # For config/initializers/libraries.rb
 
 # Necessary:
 gem 'acts-as-taggable-on', '~> 1.1.5'

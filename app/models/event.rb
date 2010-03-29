@@ -76,19 +76,14 @@ class Event < ActiveRecord::Base
     return self == Event.current
   end
 
-  EVENT_CURRENT_CACHE_KEY = "event_current"
-
   # Return the current Event. Determines which event to return by checking to
   # see if a snippet says which is current, else tries to return the event
   # with the latest deadline, else returns a nil.
   def self.current
-    return self.fetch_object(EVENT_CURRENT_CACHE_KEY) do
-      if record = (self.current_by_settings || self.current_by_deadline)
-        self.lookup(record.slug)
-      else
-        nil
-      end
-    end
+    query = lambda { self.current_by_settings || self.current_by_deadline }
+    return self.cache_lookups? ?
+      self.fetch_object('event_current', &query) :
+      query.call
   end
 
   # Return current event by finding it by deadline.
@@ -107,24 +102,6 @@ class Event < ActiveRecord::Base
       end
     else
       return nil
-    end
-  end
-
-  # Delete the current cached event if it's present
-  def self.expire_current
-    RAILS_CACHE.delete(EVENT_CURRENT_CACHE_KEY)
-  end
-
-  # Override CacheLookupsMixin to expire more
-  def self.expire_cache
-    self.expire_current
-    super
-  end
-
-  # Returns cached array of proposals for this event.
-  def lookup_proposals
-    self.fetch_object("proposals_for_event_#{self.id}") do
-      self.proposals
     end
   end
 
@@ -203,6 +180,8 @@ class Event < ActiveRecord::Base
 
   # Return the parent event or this Event.
   def parent_or_self
-    return self.parent || self
+    return self.parent_id ?
+      self.parent :
+      self
   end
 end

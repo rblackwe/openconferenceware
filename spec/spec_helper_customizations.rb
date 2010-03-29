@@ -2,6 +2,9 @@
 
 include AuthenticatedTestHelper
 
+# Disable rendering of shared fragments during test
+SharedFragmentHelper.shared_fragment_render = false
+
 # Save the response.body to "/tmp/response.html", to aid manual debugging.
 def save_body
   filename = "/tmp/response.html"
